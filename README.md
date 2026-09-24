@@ -1,8 +1,8 @@
-# log-report (fixed)
+# agent-eval-harness-example
 
-A small, self-contained **agent-evaluation task**: given a fixed Apache-style access log, the agent under test has to parse it and write a correct JSON summary report. It's built to the common "task.toml" pattern used by coding/terminal-agent benchmark harnesses — one instruction, one sandboxed environment, one reference solution, one automated verifier.
+**This is not a log-analysis tool.** The problem it hands an agent — summarize a 6-line access log into three numbers — is trivial on purpose; any capable model solves it in one shot with a plain prompt, no scaffolding required. What this repo actually demonstrates is the scaffolding itself: the reference-solution + independent-verifier pattern used to grade AI agents automatically and unattended, at scale, without a human (or another model) eyeballing each answer. The task.toml/environment/solution/tests layout here follows the common pattern used by coding/terminal-agent benchmark harnesses.
 
-Declared task name (from `task.toml`): `dynamo/log-report`.
+Declared task name (from `task.toml`): `log-report`.
 
 ## What's in this repo
 
@@ -24,26 +24,28 @@ Declared task name (from `task.toml`): `dynamo/log-report`.
 
 ## Why this exists
 
-Coding-agent benchmarks are built out of many small tasks like this one: cheap to run, with one unambiguous correct answer, each isolating a narrow skill (here: basic file I/O, a regex, and counting with `Counter`/`set`) so a harness can run the same fixture against many models or agents and compare results directly. This task was authored — and validated against GPT-5.4 running as the Terminus-2 agent — while exploring how these agent-eval tasks are put together.
+The task itself is deliberately the easiest possible fixture: short, well-formed input, no edge cases, no external libraries — see `task.toml`'s `difficulty_explanation`. That's intentional. Coding-agent benchmarks are built out of many small tasks like this, and each one needs to be cheap to run with one unambiguous correct answer, isolating a narrow skill (here: basic file I/O, a regex, and counting) so a harness can run the same fixture against many models or agents and compare results directly — a triviality easy to solve, and just as easy to grade automatically. This task was authored — and validated against GPT-5.4 running as the Terminus-2 agent — while exploring how these agent-eval tasks are put together.
 
 ## How you can use it
 
-- **As a template** for writing your own agent-eval tasks — copy the `instruction.md` / `environment/` / `solution/` / `tests/` / `task.toml` structure and swap in a different problem.
+- **As a worked example** of the reference-solution + independent-verifier pattern for grading agent output automatically, rather than trusting an agent's own claims of success or having a human check each run by hand.
+- **As a template** for writing your own agent-eval tasks — copy the `instruction.md` / `environment/` / `solution/` / `tests/` / `task.toml` structure and swap in a harder problem; the task itself is the easy part to change, the grading pattern is the reusable part.
 - **As a smoke test** for a coding agent or harness you're building — point it at `environment/Dockerfile` + `instruction.md`, then grade its output with `tests/test_outputs.py`.
-- **As a worked example** of the reference-solution + independent-verifier pattern for grading agent output, rather than trusting the agent's own claims of success.
+
+What it's *not* useful for: actually summarizing an access log. Any capable model answers that directly from a prompt — this repo exists to show how you'd grade that answer automatically, not to replace asking the question.
 
 ## Running it locally
 
 ```bash
 # Build the task's sandboxed environment image
-docker build -t log-report-task ./environment
+docker build -t agent-eval-harness-example ./environment
 
 # Run the reference solution, then the verifier, inside it
 docker run --rm \
   -v "$(pwd)/solution:/solution" \
   -v "$(pwd)/tests:/tests" \
   -v "$(pwd)/logs:/logs" \
-  log-report-task bash -c "/solution/solve.sh && /tests/test.sh"
+  agent-eval-harness-example bash -c "/solution/solve.sh && /tests/test.sh"
 ```
 
 This writes `/app/report.json` inside the container and `logs/verifier/reward.txt` on the host (`1` means the verifier passed).
